@@ -45,7 +45,7 @@ int main(int argc, char *argv[]){
 		}	
 
 		if (fork() == 0){
-			execvp(*myargv,myargv);//TRATAR EXEC
+			execl("./",*myargv,NULL);//TRATAR EXEC
 
 		}
 
