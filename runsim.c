@@ -4,9 +4,14 @@
 #include <string.h>
 #include <errno.h>
 #include <limits.h>
+#include <sys/wait.h>
 /*#include <sys/type.h> */
 
+int pr_count = 0;
+
 int makeargv(const char *s, const char *delimiters, char ***argvp);
+
+void getChild(int a);
 
 int main(int argc, char *argv[]){
 
@@ -19,24 +24,22 @@ int main(int argc, char *argv[]){
 	char **myargv;
 	int numTokens=0;
 	//----------------
-	int pr_count = 0;
 	int pr_limit = atoi(argv[1]);
 	char comand[MAX_CANON];
 
-	while(!feof(stdin)){ //OU FAZER UM FOR E DAR EXIT(0) QND CONDICA0 = END-OF-FILE
+	signal(SIGCHLD, getChild);
+
+	while(!feof(stdin)){
 
 
-		//printf("%s\n",comand);
-
-		//printf("%s\n",myargv[0]); 
-
-		
 		if(pr_count >= pr_limit){
-			wait();
-			pr_count--;
+			wait(NULL);
 		}
 		
-		fgets(comand,MAX_CANON,stdin);
+		if(fgets(comand,MAX_CANON,stdin) == NULL){
+			continue;
+		}
+
 		numTokens = makeargv(comand, delim, &myargv);
 
 		if (numTokens  == -1){
@@ -44,23 +47,27 @@ int main(int argc, char *argv[]){
 			exit(1);
 		}	
 
-		if (fork() == 0){
-			execl("./",*myargv,NULL);//TRATAR EXEC
-
+		int pid = fork();
+		if (pid == 0){
+			execve(myargv[0], &myargv[0], NULL);
 		}
 
+		waitpid(pid, NULL, WNOHANG);
 		pr_count++;
 		
-		//waitpid TODO: Pesquisar essa funcao			
-	/*
-		printf("limite = %d, atual = %d\n",pr_limit,pr_count); //TRATAR PR_COUNT E PR_LIMIT
-		pr_count++;
-	*/
-		
+	}
+
+	while (pr_count > 0)
+	{
+		wait(NULL);
 	}
 
 
 	return 0;
+}
+
+void getChild(int a){
+	pr_count--;
 }
 
 /*
