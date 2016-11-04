@@ -23,7 +23,6 @@ int main(int argc, char *argv[]){
 	for(i=0 ; i < valor2 ; i++){
 		sleep(valor1);
 	}
-	printf("%s, %s\n", argv[1], argv[2]);	
 
 	return 0;
 
