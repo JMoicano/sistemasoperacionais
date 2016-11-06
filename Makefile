@@ -1,8 +1,9 @@
-compile:
-	gcc -o runsim runsim.c
-	gcc -o testsim testesim.c
-run:
-	./runsim 2 < testing.data
+%.o: %.c
+	gcc -c -o $@
+
+compile: fsh runsim testsim
+
 clean:
-	rm testsim runsim
-all: run
+	rm testsim runsim fsh
+
+all: compile

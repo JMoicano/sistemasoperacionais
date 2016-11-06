@@ -70,22 +70,6 @@ void getChild(int a){
 	pr_count--;
 }
 
-/*
-5. Execute o loop a seguir até que o “end­of­file” seja lido da entrada padrão.
-a. Se pr_count for igual a pr_limit, espere o término de um filho e decremente
-pr_count.
-b. Leia uma linha da entrada padrão (fgets) de no máximo MAX_CANON
-c.
-d.
-caracteres e execute um programa correspondendo à linha de comando
-lida criando-se um processo filho (veja função makeargv() no final do
-trabalho).
-Incremente pr_count para contabilizar o número de processos filhos ativos.
-Verifique se algum filho já terminou, sem bloquear caso nenhum filho
-tenha terminado. Decremente pr_count para cada filho finalizado.
-6. Após a leitura do “end­of­file” da entrada padrão, aguarde que todos os demais
-processos filhos terminem e, finalmente, termine o programa.
-*/
 
 int makeargv(const char *s, const char *delimiters, char ***argvp) {
 	int error;
