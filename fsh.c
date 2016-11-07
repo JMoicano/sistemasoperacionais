@@ -10,11 +10,13 @@ char* waitInput(char* str);
 
 int processCommands(const char* s, char*** commands); //TODO: atribui a commands a lista de comandos lida em s e retorna a quantidade de comandos
 
-void handleSigChld(int a);
+void handleSigChld(int sig);
 
 int makeargv(const char *s, const char *delimiters, char ***argvp);
 
-int numChild = 0;
+int exec(char** argv);
+
+int children[2];
 
 int main(int argc, char const *argv[]){
 	char line[MAX_CANON];
@@ -24,14 +26,17 @@ int main(int argc, char const *argv[]){
 		int numCommands = processCommands(line, &commands);
 		int pid = fork();
 		if(pid == 0){
-			signal(SIGCHLD, handleSigChld);
 			for (int i = 0; i < numCommands; ++i){
-				pid = fork();
-				if(pid != 0){
-					signal(SIGCHLD, handleSigChld);
+				signal(SIGCHLD, handleSigChld);
+				if(i != numCommands - 1){
+					pid = fork();
+				}
+				if(i == numCommands-1 || pid != 0){
 					char** argv;
 					int numTokens = makeargv(commands[i], " ", &argv);
-					execve(argv[0], &argv[0], NULL);
+					children[0] = pid;
+					children[1] = exec(argv);
+					break;
 				}
 			}
 			break;	
@@ -46,13 +51,27 @@ char* waitInput(char* str){
 	return fgets(str,MAX_CANON,stdin);
 }
 
-void handleSigChld(int a){
+void handleSigChld(int sig){
+	printf("TIROLESA %d\n", sig);
+	int pid = wait(NULL);
+	printf("PID %d\n", pid);
+	kill(children[0], SIGCHLD);
+	kill(children[1], SIGKILL);
 	exit(0);
 }
 
 int processCommands(const char* s, char*** commands){
 	return makeargv(s, "@", commands);
 }
+
+int exec(char** argv){
+	int pid = fork();
+	if(pid == 0){
+		execvp(argv[0], &argv[0]);
+	}
+	return pid;
+}
+
 
 int makeargv(const char *s, const char *delimiters, char ***argvp) {
 	int error;
