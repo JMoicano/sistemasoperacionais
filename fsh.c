@@ -1,10 +1,12 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <signal.h>
 #include <errno.h>
 #include <limits.h>
 #include <string.h>
 #include <sys/wait.h>
+// #include <sys/type.h>
 
 char* waitInput(char* str);
 
@@ -16,31 +18,46 @@ int makeargv(const char *s, const char *delimiters, char ***argvp);
 
 int exec(char** argv);
 
-int children[2];
+pid_t children[2];
 
+char pidList[MAX_CANON];
 int main(int argc, char const *argv[]){
 	char line[MAX_CANON];
 	char** commands;
 	while(1){
 		waitInput(line);
 		int numCommands = processCommands(line, &commands);
-		int pid = fork();
+		pid_t fshPID = getpid();
+		sprintf(pidList, "%d", fshPID);
+		if(/*CHAMADA DO SISTEMA*/){
+			//TRATA CHAMADAS DE SISTEMA
+			continue;
+		}
+		pid_t pid = fork();
 		if(pid == 0){
 			for (int i = 0; i < numCommands; ++i){
-				signal(SIGCHLD, handleSigChld);
-				if(i != numCommands - 1){
-					pid = fork();
+				char** argv;
+				int numTokens = makeargv(commands[i], " \t\n", &argv);
+				children[1] = exec(argv);
+				sprintf(pidList, "%s -> %d", pidList, children[1]);
+				printf("%s\n", pidList);
+				int flag = (i == numCommands-1);
+
+				if(!flag){
+					children[0] = fork();
 				}
-				if(i == numCommands-1 || pid != 0){
-					char** argv;
-					int numTokens = makeargv(commands[i], " ", &argv);
-					children[0] = pid;
-					children[1] = exec(argv);
+
+				signal(SIGCHLD, handleSigChld);
+
+				if(flag || children[0] > 0){
+					wait(NULL);
 					break;
 				}
+
 			}
 			break;	
 		}
+		sleep(1);
 		
 	}
 	return 0;
@@ -52,9 +69,6 @@ char* waitInput(char* str){
 }
 
 void handleSigChld(int sig){
-	printf("TIROLESA %d\n", sig);
-	int pid = wait(NULL);
-	printf("PID %d\n", pid);
 	kill(children[0], SIGCHLD);
 	kill(children[1], SIGKILL);
 	exit(0);
@@ -64,10 +78,10 @@ int processCommands(const char* s, char*** commands){
 	return makeargv(s, "@", commands);
 }
 
-int exec(char** argv){
-	int pid = fork();
+pid_t exec(char** argv){
+	pid_t pid = fork();
 	if(pid == 0){
-		execvp(argv[0], &argv[0]);
+		execvp(argv[0], argv);
 	}
 	return pid;
 }
