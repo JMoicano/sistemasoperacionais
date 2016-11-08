@@ -6,104 +6,69 @@
 #include <limits.h>
 #include <string.h>
 #include <sys/wait.h>
-// #include <sys/type.h>
+#include "list.h"
 
 char* waitInput(char* str);
 
-int processCommands(const char* s, char*** commands); //TODO: atribui a commands a lista de comandos lida em s e retorna a quantidade de comandos
-
 void handleSigChld(int sig);
+
+void getChild(int sig);
 
 int makeargv(const char *s, const char *delimiters, char ***argvp);
 
 int exec(char** argv);
 
-pid_t children[2];
 
-//*****************************************************************
-
-void retiraQuebra(char* s);
-int quebraLinhaDeComando(char* linha_de_comando, char** comandos, char* divisor);
 void pwd();
+
 void cd(char* dir);
 
-//*****************************************************************
-//***************************************************************** FUNCOES PARA BLOQUEAR O SINAL CNTR-C, MAS ESTA APEANS IGNORANDO E QND ELE E DESBLOQUEADO ELE FINALIZA A SHELL
-/*
-sigset_t intmask;
-sigset_t newsigset;
-void trataSigint(){
-	if ((sigemptyset(&newsigset) == -1) || (sigaddset(&newsigset, SIGINT) == -1))
-		perror("Failed to initialize the signal set");
-	else if (sigprocmask(SIG_BLOCK, &newsigset,NULL) == -1)
-		perror("Failed to block SIGINT");
-}
+void waitz();
 
-void destrataSigint(){
-	if ((sigemptyset(&newsigset) == -1) || (sigaddset(&newsigset, SIGINT) == -1))
-		perror("Failed to initialize the signal set");
-	else if (sigprocmask(SIG_UNBLOCK, &newsigset,NULL) == -1)
-		perror("Failed to block SIGINT");
-}
+void exitFSH();
 
 
-
-void bloqueiaSigint(){
-	sigemptyset(&intmask);
-	sigaddset(&intmask, SIGINT);
-	sigprocmask(SIG_BLOCK, &intmask, NULL);
-}
-
-void desbloqueiaSigint(){
-	sigprocmask(SIG_UNBLOCK, &intmask, NULL);
-}
-//*****************************************************************
-*/
 char pidList[MAX_CANON];
+pid_t children[2];
+List p1List;
+sigset_t intmask;
+
 int main(int argc, char const *argv[]){
-int k;
-//*****************************************************************
-/*
-trataSigint();
-sleep(5);
-destrataSigint();
-*/
-/*	bloqueiaSigint();
-	sleep(5);
-	desbloqueiaSigint();
-*/	
-//*****************************************************************
+
 	char line[MAX_CANON];
 	char** commands;
-	char** aux; //CRIAR AUXILIAR PARA TRATAR O " " DA FUNCAO CD
 	while(1){
 		waitInput(line);
 
 
-		int numCommands = processCommands(line, &commands);
-		int test = processCommands(line, &aux); //CRIAR AUXILIAR PARA TRATAR O " " DA FUNCAO CD
+		int numCommands = makeargv(line, "@\n", &commands);
+		char** temp;
+		makeargv(commands[0], " ",&temp);
 		pid_t fshPID = getpid();
 		sprintf(pidList, "%d", fshPID);
-	//	if(/*CHAMADA DO SISTEMA*/){
-	//		//TRATA CHAMADAS DE SISTEMA
-	//		continue;
-	//	}
 
 //*****************************************************************
-		k = quebraLinhaDeComando(line, aux, " "); //TRATA O COMANDO CD PARA ACESSAR O DIRETORIO
-		retiraQuebra(aux[k-1]);
+		if(numCommands == 0){
+			
+			continue;
 
-		if(strcmp(line,"cd") == 0 ){
-			cd(aux[1]);
+		}else if(strcmp(temp[0],"cd") == 0 ){
+			
+			cd(temp[1]);
 
-		}
-
-		else if(strcmp(line,"pwd") == 0 ){
+		}else if(strcmp(temp[0],"pwd") == 0 ){
+			
 			pwd();
 
-		}
+		}else if(strcmp(temp[0], "waitz") == 0){
+			
+			waitz();
 
-		else {
+		}else if(strcmp(temp[0], "exit") == 0){
+
+			exitFSH();
+
+		}else{
 //*****************************************************************
 			pid_t pid = fork();
 
@@ -112,6 +77,7 @@ destrataSigint();
 				exit(1);
 
 			}else if(pid == 0){
+				setsid();
 				for (int i = 0; i < numCommands; ++i){
 					char** argv;
 					int numTokens = makeargv(commands[i], " \t\n", &argv);
@@ -133,12 +99,41 @@ destrataSigint();
 
 				}
 				break;	
+			}else{
+				sigemptyset(&intmask);
+				sigaddset(&intmask, SIGINT);
+				sigprocmask(SIG_BLOCK, &intmask, NULL);
+				signal(SIGCHLD, getChild);
 			}
 		}
-		//sleep(1);
-		
+		sleep(1);
+			
 	}
 	return 0;
+}
+
+void exitFSH(){
+	while (!isEmpty()){
+		pid_t pid = getData(deleteFirst());
+		kill(pid, SIGCHLD);
+	}
+	exit(0);
+}
+
+void waitz(){
+	pid_t pid = waitpid(-1, NULL, WNOHANG);
+	while (pid > 0){
+		printf("Processo com PID: %d liberado.\n", pid);
+	}
+	printf("Todos os processos liberados.\n");
+}
+
+void getChild(int sig){
+	pid_t pid = waitpid(-1, NULL, WNOHANG);
+	delete(pid);
+	if (isEmpty()){
+		sigprocmask(SIG_UNBLOCK, &intmask, NULL);
+	}
 }
 
 char* waitInput(char* str){
@@ -150,10 +145,6 @@ void handleSigChld(int sig){
 	kill(children[0], SIGCHLD);
 	kill(children[1], SIGKILL);
 	exit(0);
-}
-
-int processCommands(const char* s, char*** commands){
-	return makeargv(s, "@", commands);
 }
 
 pid_t exec(char** argv){
@@ -169,35 +160,8 @@ pid_t exec(char** argv){
 	return pid;
 }
 
-//*****************************************************************FUNCOES PARA TRATAR CD E PWD , E DUAS FUNCOES PARA SEPARAR O CD E ACESSAR O DIRETORIO
+//*****************************************************************FUNCOES PARA TRATAR CD E PWD
 
-void retiraQuebra(char* s){
-	char *p2 = s;
-    while(*s != '\0') {
-    	if(*s != '\t' && *s != '\n') {
-    		*p2++ = *s++;
-    	} else {
-    		++s;
-    	}
-    }
-    *p2 = '\0';
-}
-int quebraLinhaDeComando(char* linha_de_comando, char** comandos, char* divisor){
-
-	char* partes;
-	int i = 0, j;
-
-	partes = strtok(linha_de_comando, divisor);
-
-	while(partes != NULL && i<10){
-    	comandos[i] = (char*)malloc((strlen(partes)+1)*sizeof(char));
-    	strcpy(comandos[i], partes);
-    	i++;
-    	partes = (char*)strtok(NULL, divisor);
-  	}
-
-  	return i;
-}
 void pwd(){
 	char diretorio[100];
 

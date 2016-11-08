@@ -1,9 +1,10 @@
-%.o: %.c
-	gcc -c -o $@
-
-compile: fsh runsim testsim
+compile:
+	gcc -c list.c
+	gcc -o fsh list.o fsh.c
+	gcc -o runsim runsim.c
+	gcc -o testsim testsim.c
 
 clean:
-	rm testsim runsim fsh
+	rm -rf list.o testsim runsim fsh
 
 all: compile
