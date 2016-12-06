@@ -1,15 +1,9 @@
 //Código das threads dos homens e mulheres
 // cada homem e mulher terá um identificador de 1 a 10
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-#include <limits.h>
-#include <sys/wait.h>
+#include <pthread.h>
 #include "monitorBanheiro.h"
-int true = 1;
-int false = 0;
 
 void thread_homem(int *id)
 {
@@ -22,7 +16,6 @@ void thread_homem(int *id)
 			homemSai();
 		printf ("Eu sou homem-%d: ... Estou aliviado! Vou trabalhar!\n",*id);
 			sleep(5);
-	//	break;//teste id
 	}
 }
 
@@ -37,10 +30,39 @@ void thread_mulher(int *id)
 			mulherSai();
 		printf ("Eu sou mulher-%d: ... Estou aliviada! Vou trabalhar!\n",*id);
 			sleep(5);
-	//	break;//teste id
 	}
 }
 
+
+int main(){
+	int num_funcionario = 10;
+
+	pthread_t mulheres[num_funcionario];
+    pthread_t homens[num_funcionario];
+
+    int id[num_funcionario];
+
+    for (int i = 0; i < num_funcionario; ++i)
+    {
+    	id[i] = i;
+    }
+
+    for (int i = 0, int j = 0; i < num_funcionario; ++i, ++j)
+    {
+    	pthread_create(&homens[i], NULL, (void*)thread_homem, &id[i]);
+    	pthread_create(&mulheres[j], NULL, (void*)thread_mulher, &id[j]);
+    }
+
+    for (int i = 0; i < num_funcionario; ++i)
+    {
+    	pthread_join(mulheres[i], NULL);
+    	pthread_join(homens[i], NULL);
+    }
+
+    pthread_exit(NULL);
+    
+    return 0;
+}
 
 
 
